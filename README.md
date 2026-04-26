@@ -1,50 +1,84 @@
-# Welcome to your Expo app 👋
+# Move-Chilld
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+School shuttle tracker so parents know **exactly when to leave home**.
 
-## Get started
+Built with **Expo Router**, **TypeScript**, **Supabase** (Auth + Postgres + Realtime), **react-native-maps**, and **expo-notifications**.
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Quick start
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Open on an iOS/Android device or simulator. (Maps and GPS won't work on web.)
 
-## Learn more
+## Project structure
 
-To learn more about developing your project with Expo, look at the following resources:
+```
+app/
+  _layout.tsx    Root stack
+  index.tsx      Login (Google + email/password fallback)
+  home.tsx       Parent dashboard
+  driver.tsx    Driver dashboard
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+src/
+  lib/
+    supabase.ts  Supabase client (AsyncStorage session persistence)
+    types.ts     Shared domain types
+    geo.ts       Distance + ETA helpers
+  hooks/
+    useSession.ts
+    useProfile.ts
+  features/
+    auth/          Google OAuth flow
+    driver/        Driver API + screen helpers
+    parent/        Parent API, realtime hook, status logic, map component
+    location/      Foreground GPS tracking for the driver
+    notifications/ Push token registration + "approaching" local alert
 
-## Join the community
+supabase/
+  schema.sql   Tables + RLS + realtime publications
+  seed.sql    Minimal seed data for smoke testing
+```
 
-Join our community of developers creating universal apps.
+## Backend setup
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. In the Supabase SQL editor, run `supabase/schema.sql`.
+2. Enable the **Google** provider under _Authentication → Providers_:
+   - Add redirect URLs:
+     - `movechilld://auth-callback` (native)
+     - `http://localhost:8081/auth-callback` (dev web)
+3. After signing up a driver and a parent user, edit `supabase/seed.sql` with their uuids and run it.
+4. _(Optional)_ Move the Supabase URL and publishable key into `app.json` under `expo.extra`:
+
+   ```json
+   "extra": {
+     "supabaseUrl": "https://…supabase.co",
+     "supabasePublishableKey": "sb_publishable_…"
+   }
+   ```
+
+## Roles
+
+- **Parent** (default on signup): sees assigned route, shuttle status, ETA, live map, gets a push when the bus is within 700 m.
+- **Driver**: set `profiles.role = 'driver'` and assign them a route. They can start/end trips, mark stops as arrived, and stream GPS while driving.
+
+## Shuttle status logic
+
+Computed in `src/features/parent/status.ts`:
+
+- no active trip → `not_started`
+- trip completed → `completed`
+- stop event = arrived → `passed`
+- distance < 700 m → `approaching` (triggers local notification)
+- otherwise → `en_route`
+
+ETA uses a naive 30 km/h assumption (`AVG_SPEED_MPS`). Swap in a better estimator later without changing the UI.
+
+## Known MVP limitations
+
+- Foreground-only GPS tracking (driver must keep the app open).
+- Local-only "approaching" notification (no server-side push fan-out yet — `push_token` is collected so it's easy to add).
+- Single-route, single-child assumption.
+- No admin UI — routes/stops/children inserted manually.
