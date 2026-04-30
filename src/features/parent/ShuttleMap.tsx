@@ -11,12 +11,11 @@ type Props = {
  * Web fallback — react-native-maps is native-only.
  * Metro resolves `ShuttleMap.native.tsx` on iOS/Android and this file on web.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ShuttleMap(_props: Props) {
   return (
     <View style={styles.fallback}>
       <Text style={styles.fallbackText}>
-        La carte n'est disponible que sur mobile.
+        {"La carte n'est disponible que sur mobile."}
       </Text>
     </View>
   );

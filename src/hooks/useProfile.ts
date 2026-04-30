@@ -19,7 +19,7 @@ export function useProfile(userId: string | undefined) {
     setLoading(true);
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, role, full_name, push_token")
+      .select("id, role, email, full_name, push_token")
       .eq("id", userId)
       .maybeSingle();
 

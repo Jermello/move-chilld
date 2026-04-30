@@ -80,7 +80,9 @@ stable
 security definer
 set search_path = public, auth
 as $$
-  select p.id, u.email, p.role, p.full_name
+  -- Email comes from auth.users (source of truth) and falls back to the
+  -- mirrored copy on profiles for any legacy / OAuth row missing it.
+  select p.id, coalesce(u.email, p.email) as email, p.role, p.full_name
   from public.profiles p
   join auth.users u on u.id = p.id
   where public.is_admin()

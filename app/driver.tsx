@@ -12,6 +12,8 @@ import { useDriverLocation } from "@/src/features/location/useDriverLocation";
 import { useProfile } from "@/src/hooks/useProfile";
 import { useSession } from "@/src/hooks/useSession";
 import { supabase } from "@/src/lib/supabase";
+import { radii, spacing, typography, type Theme } from "@/src/lib/theme";
+import { useTheme } from "@/src/lib/themeContext";
 import type {
   Route,
   Stop,
@@ -19,7 +21,7 @@ import type {
   TripSession,
 } from "@/src/lib/types";
 import { Redirect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +34,10 @@ import {
 } from "react-native";
 
 export default function DriverScreen() {
+  const theme = useTheme();
+  const { colors, shadow } = theme;
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   const router = useRouter();
   const { session, loading: sessionLoading } = useSession();
   const { profile } = useProfile(session?.user.id);
@@ -76,7 +82,6 @@ export default function DriverScreen() {
     load();
   }, [load]);
 
-  // Refresh stop events while the trip is running so the list stays in sync.
   useEffect(() => {
     if (!tripId) return;
     const channel = supabase
@@ -129,7 +134,7 @@ export default function DriverScreen() {
   if (sessionLoading || loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.brandDeep} />
       </View>
     );
   }
@@ -139,12 +144,13 @@ export default function DriverScreen() {
 
   if (!route) {
     return (
-      <View style={styles.center}>
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyEmoji}>🚌</Text>
         <Text style={styles.title}>Aucun trajet assigné</Text>
         <Text style={styles.subtle}>
-          Contacte l'administrateur pour qu'il t'assigne une route.
+          {"Contacte l'administrateur pour qu'il t'assigne une route."}
         </Text>
-        <LogoutButton onAfter={() => router.replace("/")} />
+        <LogoutButton onAfter={() => router.replace("/")} styles={styles} />
       </View>
     );
   }
@@ -176,24 +182,51 @@ export default function DriverScreen() {
   };
 
   const active = trip?.status === "active";
+  const completed = trip?.status === "completed";
   const eventByStop = new Map(events.map((e) => [e.stop_id, e]));
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{route.name}</Text>
+      <View style={styles.header}>
+        <Text style={styles.routeBadge}>LIGNE</Text>
+        <Text style={styles.title}>{route.name}</Text>
+      </View>
 
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>Statut</Text>
-        <Text style={styles.cardValue}>
+      <View
+        style={[
+          styles.statusCard,
+          shadow.sm,
+          active && [styles.statusCardActive, shadow.accent],
+          completed && styles.statusCardDone,
+        ]}
+      >
+        <View style={styles.statusHeader}>
+          <Text
+            style={[
+              styles.statusLabel,
+              active && styles.statusLabelActive,
+              completed && styles.statusLabelDone,
+            ]}
+          >
+            STATUT
+          </Text>
+          {active && (
+            <View style={styles.livePill}>
+              <View style={styles.livePillDot} />
+              <Text style={styles.livePillText}>EN COURS</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.statusValue}>
           {active
-            ? "🟢 Trajet en cours"
-            : trip?.status === "completed"
-            ? "✅ Trajet terminé"
-            : "⚪️ Pas démarré"}
+            ? "Trajet en cours"
+            : completed
+            ? "Trajet terminé"
+            : "Pas démarré"}
         </Text>
         {active && coords && (
           <Text style={styles.subtle}>
-            Position: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+            📍 {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
           </Text>
         )}
         {active && permission === "denied" && (
@@ -201,50 +234,74 @@ export default function DriverScreen() {
         )}
       </View>
 
-      <View style={styles.toggleCard}>
+      <View style={[styles.toggleCard, shadow.sm]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.toggleLabel}>Détection auto des arrêts</Text>
           <Text style={styles.subtle}>
-            Marque l'arrêt comme atteint quand tu passes à moins de 60m.
+            Marque l&apos;arrêt comme atteint à moins de 60m.
           </Text>
         </View>
-        <Switch value={autoArrive} onValueChange={setAutoArrive} />
+        <Switch
+          value={autoArrive}
+          onValueChange={setAutoArrive}
+          trackColor={{ false: colors.borderStrong, true: colors.brand }}
+          thumbColor={colors.surface}
+        />
       </View>
 
       {!active ? (
         <Pressable
           onPress={onStart}
           disabled={busy || stops.length === 0}
-          style={[styles.primaryBtn, (busy || stops.length === 0) && styles.disabled]}
+          style={[
+            styles.startBtn,
+            shadow.brand,
+            (busy || stops.length === 0) && styles.disabled,
+          ]}
         >
-          <Text style={styles.primaryBtnText}>Démarrer le trajet</Text>
+          <Text style={styles.startBtnText}>🚀  Démarrer le trajet</Text>
         </Pressable>
       ) : (
         <Pressable
           onPress={onEnd}
           disabled={busy}
-          style={[styles.dangerBtn, busy && styles.disabled]}
+          style={[styles.endBtn, shadow.sm, busy && styles.disabled]}
         >
-          <Text style={styles.primaryBtnText}>Terminer le trajet</Text>
+          <Text style={styles.endBtnText}>Terminer le trajet</Text>
         </Pressable>
       )}
 
-      <Text style={styles.sectionTitle}>Arrêts</Text>
+      <Text style={styles.sectionTitle}>Arrêts ({stops.length})</Text>
       <FlatList
         data={stops}
         keyExtractor={(s) => s.id}
-        contentContainerStyle={{ gap: 8, paddingBottom: 40 }}
+        contentContainerStyle={{ gap: spacing.sm, paddingBottom: 40 }}
         renderItem={({ item }) => {
           const ev = eventByStop.get(item.id);
           const arrived = ev?.status === "arrived";
           return (
             <View style={[styles.stopRow, arrived && styles.stopRowDone]}>
+              <View
+                style={[
+                  styles.stopOrderBadge,
+                  arrived && styles.stopOrderBadgeDone,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.stopOrderText,
+                    arrived && styles.stopOrderTextDone,
+                  ]}
+                >
+                  {arrived ? "✓" : item.stop_order}
+                </Text>
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.stopName}>
-                  {item.stop_order}. {item.name}
+                <Text style={[styles.stopName, arrived && styles.stopNameDone]}>
+                  {item.name}
                 </Text>
                 {arrived && ev?.arrived_at && (
-                  <Text style={styles.subtle}>
+                  <Text style={styles.subtleSuccess}>
                     Arrivé à {new Date(ev.arrived_at).toLocaleTimeString()}
                   </Text>
                 )}
@@ -254,10 +311,16 @@ export default function DriverScreen() {
                 onPress={() => onMarkArrived(item.id)}
                 style={[
                   styles.markBtn,
+                  arrived && styles.markBtnDone,
                   (!active || arrived) && styles.disabled,
                 ]}
               >
-                <Text style={styles.markBtnText}>
+                <Text
+                  style={[
+                    styles.markBtnText,
+                    arrived && styles.markBtnTextDone,
+                  ]}
+                >
                   {arrived ? "OK" : "Arrivé"}
                 </Text>
               </Pressable>
@@ -269,12 +332,18 @@ export default function DriverScreen() {
         }
       />
 
-      <LogoutButton onAfter={() => router.replace("/")} />
+      <LogoutButton onAfter={() => router.replace("/")} styles={styles} />
     </View>
   );
 }
 
-function LogoutButton({ onAfter }: { onAfter: () => void }) {
+function LogoutButton({
+  onAfter,
+  styles,
+}: {
+  onAfter: () => void;
+  styles: ReturnType<typeof makeStyles>;
+}) {
   return (
     <Pressable
       onPress={async () => {
@@ -288,72 +357,178 @@ function LogoutButton({ onAfter }: { onAfter: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, gap: 14, backgroundColor: "#fff" },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    gap: 12,
-    backgroundColor: "#fff",
-  },
-  title: { fontSize: 26, fontWeight: "800" },
-  sectionTitle: { fontSize: 18, fontWeight: "700", marginTop: 8 },
-  subtle: { color: "#666", fontSize: 13 },
-  error: { color: "#b91c1c", fontSize: 13 },
-  card: {
-    backgroundColor: "#f5f5f7",
-    borderRadius: 14,
-    padding: 16,
-    gap: 4,
-  },
-  cardLabel: { color: "#666", fontSize: 12, textTransform: "uppercase" },
-  cardValue: { fontSize: 18, fontWeight: "700" },
-  toggleCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#f5f5f7",
-    borderRadius: 14,
-    padding: 14,
-  },
-  toggleLabel: { fontSize: 15, fontWeight: "600" },
-  primaryBtn: {
-    backgroundColor: "#111",
-    padding: 16,
-    borderRadius: 12,
-  },
-  dangerBtn: {
-    backgroundColor: "#b91c1c",
-    padding: 16,
-    borderRadius: 12,
-  },
-  primaryBtnText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  stopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fafafa",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
-  stopRowDone: { backgroundColor: "#ecfdf5", borderColor: "#a7f3d0" },
-  stopName: { fontSize: 15, fontWeight: "600" },
-  markBtn: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-  },
-  markBtnText: { color: "#fff", fontWeight: "700" },
-  ghostBtn: { padding: 10 },
-  ghostBtnText: { color: "#666", textAlign: "center", fontWeight: "600" },
-  disabled: { opacity: 0.45 },
-});
+function makeStyles({ colors }: Theme) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: spacing.xl,
+      gap: spacing.md,
+      backgroundColor: colors.bg,
+    },
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.bg,
+    },
+    emptyState: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.xl,
+      gap: spacing.md,
+      backgroundColor: colors.bg,
+    },
+    emptyEmoji: { fontSize: 48 },
+
+    header: { gap: 4 },
+    routeBadge: {
+      ...typography.label,
+      color: colors.brandDeep,
+      fontSize: 11,
+    },
+    title: { ...typography.title, color: colors.text },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "800",
+      marginTop: spacing.sm,
+      color: colors.text,
+    },
+    subtle: { color: colors.textMuted, fontSize: 13 },
+    subtleSuccess: { color: colors.success, fontSize: 12, fontWeight: "600" },
+    error: { color: colors.danger, fontSize: 13, fontWeight: "500" },
+
+    statusCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      padding: spacing.lg,
+      gap: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    statusCardActive: {
+      backgroundColor: colors.accentSoft,
+      borderColor: colors.accent,
+    },
+    statusCardDone: {
+      backgroundColor: colors.successSoft,
+      borderColor: colors.success,
+    },
+    statusHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    statusLabel: { ...typography.label, color: colors.textMuted },
+    statusLabelActive: { color: colors.accentDeep },
+    statusLabelDone: { color: colors.success },
+    statusValue: { fontSize: 22, fontWeight: "800", color: colors.text },
+
+    livePill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      backgroundColor: colors.accent,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+    },
+    livePillDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.surface,
+    },
+    livePillText: {
+      color: colors.textOnDark,
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 0.5,
+    },
+
+    toggleCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    toggleLabel: { fontSize: 15, fontWeight: "700", color: colors.text },
+
+    startBtn: {
+      backgroundColor: colors.brand,
+      padding: spacing.lg,
+      borderRadius: radii.lg,
+    },
+    startBtnText: {
+      color: colors.textOnBrand,
+      textAlign: "center",
+      fontWeight: "800",
+      fontSize: 17,
+    },
+    endBtn: {
+      backgroundColor: colors.danger,
+      padding: spacing.lg,
+      borderRadius: radii.lg,
+    },
+    endBtnText: {
+      color: colors.textOnDark,
+      textAlign: "center",
+      fontWeight: "800",
+      fontSize: 17,
+    },
+
+    stopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    stopRowDone: {
+      backgroundColor: colors.successSoft,
+      borderColor: colors.successBorder,
+    },
+    stopOrderBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.pill,
+      backgroundColor: colors.brandSoft,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    stopOrderBadgeDone: { backgroundColor: colors.success },
+    stopOrderText: {
+      color: colors.brandDeep,
+      fontWeight: "800",
+      fontSize: 14,
+    },
+    stopOrderTextDone: { color: colors.surface, fontSize: 16 },
+    stopName: { fontSize: 15, fontWeight: "700", color: colors.text },
+    stopNameDone: { color: colors.success },
+
+    markBtn: {
+      backgroundColor: colors.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: radii.md,
+    },
+    markBtnDone: { backgroundColor: colors.success },
+    markBtnText: { color: colors.textOnDark, fontWeight: "700" },
+    markBtnTextDone: { color: colors.textOnDark },
+
+    ghostBtn: { padding: spacing.md },
+    ghostBtnText: {
+      color: colors.textMuted,
+      textAlign: "center",
+      fontWeight: "600",
+    },
+    disabled: { opacity: 0.45 },
+  });
+}

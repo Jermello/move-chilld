@@ -1,4 +1,5 @@
 import { haversineMeters } from "../../lib/geo";
+import type { ThemeColors } from "../../lib/theme";
 import type {
   ShuttleStatus,
   Stop,
@@ -83,12 +84,17 @@ export const STATUS_LABELS: Record<ShuttleStatus, string> = {
   completed: "Trajet terminé",
 };
 
-export const STATUS_COLORS: Record<ShuttleStatus, string> = {
-  not_started: "#9ca3af",
-  en_route: "#2563eb",
-  coming_soon: "#fbbf24",
-  approaching: "#f59e0b",
-  at_stop: "#dc2626",
-  passed: "#10b981",
-  completed: "#6b7280",
-};
+/** Computes the parent-status colors from the current theme palette. */
+export function getStatusColors(
+  colors: ThemeColors
+): Record<ShuttleStatus, string> {
+  return {
+    not_started: colors.textSubtle,
+    en_route: colors.primary,
+    coming_soon: colors.brand,
+    approaching: colors.accent,
+    at_stop: colors.danger,
+    passed: colors.success,
+    completed: colors.textMuted,
+  };
+}

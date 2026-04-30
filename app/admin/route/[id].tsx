@@ -15,9 +15,15 @@ import {
 } from "react-native";
 
 import * as adminApi from "@/src/features/admin/api";
+import { radii, spacing, typography, type Theme } from "@/src/lib/theme";
+import { useTheme } from "@/src/lib/themeContext";
 import type { AdminUser, Child, Route, Stop } from "@/src/lib/types";
 
 export default function AdminRouteDetail() {
+  const theme = useTheme();
+  const { colors } = theme;
+  const styles = useMemo(() => makeStyles(theme), [theme]);
+
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const routeId = id as string;
@@ -249,7 +255,7 @@ export default function AdminRouteDetail() {
   if (loading && !route) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.brandDeep} />
       </View>
     );
   }
@@ -262,11 +268,49 @@ export default function AdminRouteDetail() {
   const stopName = (stopId: string) =>
     stops.find((s) => s.id === stopId)?.name ?? "—";
 
+  const Section = ({
+    title,
+    children,
+  }: {
+    title: string;
+    children: React.ReactNode;
+  }) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+
+  const SelectPill = ({
+    label,
+    active,
+    onPress,
+  }: {
+    label: string;
+    active: boolean;
+    onPress: () => void;
+  }) => (
+    <Pressable
+      style={[styles.pill, active && styles.pillActive]}
+      onPress={onPress}
+    >
+      <Text style={[styles.pillText, active && styles.pillTextActive]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: "#fff" }}
+      style={{ flex: 1, backgroundColor: colors.bg }}
       contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={load}
+          tintColor={colors.brandDeep}
+        />
+      }
     >
       {/* ----- Infos ligne ----- */}
       <Section title="Infos de la ligne">
@@ -295,7 +339,7 @@ export default function AdminRouteDetail() {
         </View>
         {drivers.length === 0 && (
           <Text style={styles.subtle}>
-            Aucun chauffeur. Promeus un utilisateur depuis l'écran Admin.
+            {"Aucun chauffeur. Promeus un utilisateur depuis l'écran Admin."}
           </Text>
         )}
 
@@ -308,7 +352,7 @@ export default function AdminRouteDetail() {
       <Section title={`Arrêts (${stops.length})`}>
         {sortedStops.length === 0 ? (
           <Text style={styles.subtle}>
-            Aucun arrêt. L'ordre définit l'ordre de passage.
+            {"Aucun arrêt. L'ordre définit l'ordre de passage."}
           </Text>
         ) : (
           sortedStops.map((s, idx) => (
@@ -383,7 +427,7 @@ export default function AdminRouteDetail() {
             </Pressable>
           </View>
           <Pressable style={styles.primaryBtn} onPress={onAddStop}>
-            <Text style={styles.primaryBtnText}>Ajouter l'arrêt</Text>
+            <Text style={styles.primaryBtnText}>{"Ajouter l'arrêt"}</Text>
           </Pressable>
           <Text style={styles.hint}>
             Astuce: sur Google Maps, clic droit / appui long sur un point. Les
@@ -443,7 +487,7 @@ export default function AdminRouteDetail() {
           <Text style={styles.subLabel}>Arrêt</Text>
           <View style={styles.rowBtns}>
             {sortedStops.length === 0 && (
-              <Text style={styles.subtle}>Crée d'abord un arrêt.</Text>
+              <Text style={styles.subtle}>{"Crée d'abord un arrêt."}</Text>
             )}
             {sortedStops.map((s) => (
               <SelectPill
@@ -456,7 +500,7 @@ export default function AdminRouteDetail() {
           </View>
 
           <Pressable style={styles.primaryBtn} onPress={onAddChild}>
-            <Text style={styles.primaryBtnText}>Ajouter l'enfant</Text>
+            <Text style={styles.primaryBtnText}>{"Ajouter l'enfant"}</Text>
           </Pressable>
         </View>
       </Section>
@@ -464,127 +508,117 @@ export default function AdminRouteDetail() {
   );
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-function SelectPill({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={[styles.pill, active && styles.pillActive]}
-      onPress={onPress}
-    >
-      <Text style={[styles.pillText, active && styles.pillTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { padding: 20, gap: 20, paddingBottom: 60 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  subtle: { color: "#666", fontSize: 13 },
-  hint: { color: "#888", fontSize: 12, fontStyle: "italic" },
-  section: {
-    backgroundColor: "#f7f7f9",
-    borderRadius: 14,
-    padding: 16,
-    gap: 10,
+function makeStyles({ colors, shadow }: Theme) {
+  return StyleSheet.create({
+  container: { padding: spacing.xl, gap: spacing.xl, paddingBottom: 60 },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg,
   },
-  sectionTitle: { fontSize: 17, fontWeight: "700" },
+  subtle: { color: colors.textMuted, fontSize: 13 },
+  hint: { color: colors.textSubtle, fontSize: 12, fontStyle: "italic" },
+  section: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadow.sm,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: colors.text,
+  },
   subLabel: {
-    fontSize: 12,
-    color: "#666",
-    textTransform: "uppercase",
+    ...typography.label,
+    color: colors.textMuted,
     marginTop: 4,
   },
   subCard: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
+    backgroundColor: colors.surfaceSubtle,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    gap: spacing.sm,
     borderWidth: 1,
-    borderColor: "#e6e6ea",
+    borderColor: colors.borderSubtle,
   },
-  cardTitle: { fontSize: 12, color: "#666", textTransform: "uppercase" },
-  itemTitle: { fontSize: 15, fontWeight: "600" },
+  cardTitle: { ...typography.label, color: colors.textMuted },
+  itemTitle: { fontSize: 15, fontWeight: "700", color: colors.text },
   item: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: "#fff",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: colors.border,
   },
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: "#e2e2e6",
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    color: colors.text,
   },
-  rowBtns: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  rowBtns: { flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" },
   primaryBtn: {
-    backgroundColor: "#111",
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    borderRadius: radii.md,
     paddingVertical: 12,
     alignItems: "center",
+    ...shadow.primary,
   },
-  primaryBtnText: { color: "#fff", fontWeight: "700" },
+  primaryBtnText: { color: colors.textOnDark, fontWeight: "700" },
   secondaryBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#e9e9ed",
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
-  secondaryBtnText: { color: "#111", fontWeight: "600" },
+  secondaryBtnText: { color: colors.text, fontWeight: "600" },
   dangerBtn: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#ffe8e8",
+    borderRadius: radii.sm,
+    backgroundColor: colors.dangerSoft,
+    borderWidth: 1,
+    borderColor: colors.dangerBorder,
   },
-  dangerBtnText: { color: "#c0392b", fontWeight: "700" },
+  dangerBtnText: { color: colors.danger, fontWeight: "700" },
   iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: "#e9e9ed",
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
   iconBtnDisabled: { opacity: 0.3 },
-  iconBtnText: { fontSize: 16, fontWeight: "700" },
+  iconBtnText: { fontSize: 16, fontWeight: "700", color: colors.text },
   pill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#e9e9ed",
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
-  pillActive: { backgroundColor: "#111" },
-  pillText: { color: "#333", fontWeight: "600", fontSize: 13 },
-  pillTextActive: { color: "#fff" },
-});
+  pillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primaryHover,
+  },
+  pillText: { color: colors.textMuted, fontWeight: "700", fontSize: 13 },
+  pillTextActive: { color: colors.textOnDark },
+  });
+}

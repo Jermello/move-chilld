@@ -6,14 +6,14 @@ import { AppState, Platform } from "react-native";
 // Reads from app.json "extra" or falls back to the values below.
 // Move these to env/Expo config before shipping.
 const extra = (Constants.expoConfig?.extra ?? {}) as {
-  supabaseUrl?: string;
-  supabasePublishableKey?: string;
+  supabaseUrl: string;
+  supabasePublishableKey: string;
 };
 
 const supabaseUrl =
-  extra.supabaseUrl ?? "https://fmvlithkfqinkiuobtak.supabase.co";
+  extra.supabaseUrl;
 const publishableKey =
-  extra.supabasePublishableKey ?? "sb_publishable_wJaEWbXKqAxDD8qubA0XZQ_P82n8J_b";
+  extra.supabasePublishableKey;
 
 export const supabase = createClient(supabaseUrl, publishableKey, {
   auth: {

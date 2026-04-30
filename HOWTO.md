@@ -82,12 +82,12 @@ Scanne le QR avec Expo Go sur ton téléphone.
 
 ### Méthode rapide : via le formulaire de l'app
 
-1. Dans l'app, tu mets un email bidon (ex: `parent@test.local`) + un password (min 6 chars) → **Créer un compte**.
-2. Tu es directement connecté (grâce au fix "Confirm email" désactivé).
+1. Dans l'app, tu mets un email bidon (ex: `parent@test.local`) + un password (min 6 chars) + un **nom complet** + tu choisis le toggle **Parent / Chauffeur** → **Créer un compte**.
+2. Tu es directement connecté (grâce au fix "Confirm email" désactivé) sur l'écran correspondant à ton rôle.
 3. Déconnecte-toi.
-4. Recommence avec `chauffeur@test.local`.
+4. Recommence avec `chauffeur@test.local` en sélectionnant **Chauffeur** dans le toggle.
 
-Tu as maintenant 2 comptes, tous les deux en rôle `parent` par défaut.
+Tu as maintenant 2 comptes, le premier en `parent`, le second en `driver`.
 
 ### Vérifie dans Supabase
 
@@ -95,12 +95,16 @@ Tu as maintenant 2 comptes, tous les deux en rôle `parent` par défaut.
 - `parent@test.local`    → UID = `aaaa...`
 - `chauffeur@test.local` → UID = `bbbb...`
 
-**Database → Tables → profiles** : tu dois voir 2 lignes avec `role = parent`.  
+**Database → Tables → profiles** : tu dois voir 2 lignes avec leur `role`, leur `full_name` et leur `email` respectifs.  
 Si la table est vide (cas où le trigger a raté), lance ce SQL :
 
 ```sql
-insert into public.profiles (id, role, full_name)
-select id, 'parent', coalesce(raw_user_meta_data->>'full_name', email)
+insert into public.profiles (id, role, email, full_name)
+select
+  id,
+  coalesce(raw_user_meta_data->>'intended_role', 'parent'),
+  email,
+  coalesce(raw_user_meta_data->>'full_name', email)
 from auth.users
 on conflict (id) do nothing;
 ```

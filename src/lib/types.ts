@@ -3,6 +3,7 @@ export type Role = "parent" | "driver" | "admin";
 export type Profile = {
   id: string;
   role: Role;
+  email: string | null;
   full_name: string | null;
   push_token: string | null;
 };

@@ -7,19 +7,34 @@
 create table if not exists public.profiles (
   id          uuid primary key references auth.users (id) on delete cascade,
   role        text not null check (role in ('parent', 'driver')),
+  email       text,
   full_name   text,
   push_token  text,
   created_at  timestamptz not null default now()
 );
 
--- Auto-create a profile row on signup (default role = 'parent').
+-- Idempotent: add email column if upgrading from a previous schema.
+alter table public.profiles add column if not exists email text;
+
+-- Auto-create a profile row on signup.
+-- Role is read from raw_user_meta_data->>'intended_role' if provided
+-- (limited to 'parent' or 'driver'), otherwise defaults to 'parent'.
+-- 'admin' can NEVER be self-assigned at signup; only via SQL or admin tools.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
+declare
+  v_role text;
 begin
-  insert into public.profiles (id, role, full_name)
+  v_role := coalesce(new.raw_user_meta_data->>'intended_role', 'parent');
+  if v_role not in ('parent', 'driver') then
+    v_role := 'parent';
+  end if;
+
+  insert into public.profiles (id, role, email, full_name)
   values (
     new.id,
-    'parent',
+    v_role,
+    new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.email)
   )
   on conflict (id) do nothing;
